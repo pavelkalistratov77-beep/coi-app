@@ -113,10 +113,17 @@ export default {
 
     if (pathname.startsWith('/api/')) {
       try {
+        // the key comes from the Cloudflare Secrets Store (binding SUPABASE_KEY_STORE);
+        // if that binding is absent, fall back to a normal secret named SUPABASE_SERVICE_KEY
+        const rawKey =
+          env.SUPABASE_KEY_STORE && typeof env.SUPABASE_KEY_STORE.get === 'function'
+            ? await env.SUPABASE_KEY_STORE.get()
+            : env.SUPABASE_SERVICE_KEY;
+
         // clean the two settings: remove spaces/line breaks and a trailing slash
         const cleanEnv = {
           SUPABASE_URL: String(env.SUPABASE_URL || '').trim().replace(/\/+$/, ''),
-          SUPABASE_SERVICE_KEY: String(env.SUPABASE_SERVICE_KEY || '').trim(),
+          SUPABASE_SERVICE_KEY: String(rawKey || '').trim(),
         };
 
         if (!cleanEnv.SUPABASE_URL) {
