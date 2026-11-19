@@ -9,5 +9,12 @@
   },
   "vars": {
     "SUPABASE_URL": "https://YOUR-PROJECT-ID.supabase.co"
-  }
+  },
+  "secrets_store_secrets": [
+    {
+      "binding": "SUPABASE_KEY_STORE",
+      "store_id": "sb_secret_kQEnFYWeR7DK3hGyASaZKw_QUnE3aP-",
+      "secret_name": "supabase_secret_key"
+    }
+  ]
 }
