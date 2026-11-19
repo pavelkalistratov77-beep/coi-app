@@ -111,11 +111,34 @@ export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
 
-    if (pathname === '/api/sub-info' && request.method === 'GET') {
-      return subInfo(request, env);
-    }
-    if (pathname === '/api/upload' && request.method === 'POST') {
-      return upload(request, env);
+    if (pathname.startsWith('/api/')) {
+      try {
+        // clean the two settings: remove spaces/line breaks and a trailing slash
+        const cleanEnv = {
+          SUPABASE_URL: String(env.SUPABASE_URL || '').trim().replace(/\/+$/, ''),
+          SUPABASE_SERVICE_KEY: String(env.SUPABASE_SERVICE_KEY || '').trim(),
+        };
+
+        if (!cleanEnv.SUPABASE_URL) {
+          return json({ error: 'Setup problem: SUPABASE_URL is missing' }, 500);
+        }
+        if (!/^https:\/\/.+/.test(cleanEnv.SUPABASE_URL)) {
+          return json({ error: 'Setup problem: SUPABASE_URL must start with https://' }, 500);
+        }
+        if (!cleanEnv.SUPABASE_SERVICE_KEY) {
+          return json({ error: 'Setup problem: SUPABASE_SERVICE_KEY is missing' }, 500);
+        }
+
+        if (pathname === '/api/sub-info' && request.method === 'GET') {
+          return await subInfo(request, cleanEnv);
+        }
+        if (pathname === '/api/upload' && request.method === 'POST') {
+          return await upload(request, cleanEnv);
+        }
+        return json({ error: 'Not found' }, 404);
+      } catch (e) {
+        return json({ error: 'Worker error: ' + (e && e.message ? e.message : 'unknown') }, 500);
+      }
     }
 
     // anything else: serve the static files (upload.html etc.)
