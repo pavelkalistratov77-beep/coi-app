@@ -5,7 +5,7 @@
 //
 // Secrets (set in Cloudflare, never in code):
 //   SUPABASE_URL          e.g. https://abcdefgh.supabase.co
-//   SUPABASE_SERVICE_KEY  your sb_secret_... key
+//   SUPABASE_SERVICE_KEY  your sb_secret_nMNo6sA4rCjk3cBVc0zaHQ_MYxL7gu8
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED = {
