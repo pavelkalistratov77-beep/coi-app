@@ -8,7 +8,7 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "SUPABASE_URL": "https://abcdefgh.supabase.co"
+    "SUPABASE_URL": "https://sngsryzqszmxxqfuuuoj.supabase.co"
   },
   "secrets_store_secrets": [
     {
