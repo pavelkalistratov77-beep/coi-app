@@ -13,7 +13,7 @@
   "secrets_store_secrets": [
     {
       "binding": "SUPABASE_KEY_STORE",
-      "store_id": "sb_secret_nMNo6sA4rCjk3cBVc0zaHQ_MYxL7gu8",
+      "store_id": "sb_secret_HmIOBowoKU_Brblz5WKnvg_V3RUqPhx",
       "secret_name": "supabase_secret_key"
     }
   ]
