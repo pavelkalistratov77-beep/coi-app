@@ -1,82 +1,88 @@
-// POST /api/upload  (multipart form: t = upload token, file = certificate)
-// 1. validates the token and the file
-// 2. stores the file in the private Supabase Storage bucket "certificates"
-// 3. creates a row in the certificates table (status "pending", needs_review true)
-// AI extraction is added in the next step and will fill in the details later.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upload insurance certificate</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#5f6670; --accent:#1d5fd1; --ok:#1a7f4b; --err:#b42318; --border:#d8dce2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1d2026; --text:#eceef1; --muted:#9aa2ad; --accent:#6ea0ff; --ok:#4cc38a; --err:#ff7b72; --border:#343a44; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); display:flex; justify-content:center; padding:24px 16px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; width:100%; max-width:480px; }
+  h1 { font-size:1.25rem; margin:0 0 8px; }
+  p { color:var(--muted); line-height:1.5; margin:0 0 16px; }
+  input[type=file] { width:100%; padding:12px; border:1px dashed var(--border); border-radius:8px; background:transparent; color:var(--text); margin-bottom:16px; }
+  button { width:100%; padding:12px; font-size:1rem; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  #msg { margin-top:16px; font-weight:600; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  .hint { font-size:.85rem; margin-top:12px; margin-bottom:0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="title">Loading…</h1>
+  <p id="intro"></p>
+  <form id="form" hidden>
+    <input type="file" id="file" accept="application/pdf,image/jpeg,image/png" required>
+    <button type="submit" id="btn">Upload certificate</button>
+    <p class="hint">PDF, JPG or PNG, up to 10 MB.</p>
+  </form>
+  <div id="msg"></div>
+</div>
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
-const ALLOWED = {
-  'application/pdf': 'pdf',
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-};
+<script>
+  const token = new URLSearchParams(location.search).get('t') || '';
+  const API = 'https://sngsryzqszmxxqfuuuoj.supabase.co/functions/v1/coi-upload';
+  const $ = (id) => document.getElementById(id);
 
-const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-export async function onRequestPost({ request, env }) {
-  let form;
-  try {
-    form = await request.formData();
-  } catch {
-    return json({ error: 'Invalid request' }, 400);
+  function show(text, cls) {
+    $('msg').textContent = text;
+    $('msg').className = cls || '';
   }
 
-  const t = String(form.get('t') || '');
-  const file = form.get('file');
-
-  if (!/^[a-f0-9]{32}$/.test(t)) return json({ error: 'Invalid link' }, 400);
-  if (!file || typeof file === 'string' || typeof file.size !== 'number') {
-    return json({ error: 'No file received' }, 400);
-  }
-  if (file.size === 0) return json({ error: 'The file is empty' }, 400);
-  if (file.size > MAX_BYTES) return json({ error: 'File is too large (max 10 MB)' }, 400);
-
-  const ext = ALLOWED[file.type];
-  if (!ext) return json({ error: 'Please upload a PDF, JPG or PNG file' }, 400);
-
-  const auth = {
-    apikey: env.SUPABASE_SERVICE_KEY,
-    Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-  };
-
-  // 1. find the subcontractor by token
-  const subRes = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/subcontractors?upload_token=eq.${t}&select=id`,
-    { headers: auth }
-  );
-  if (!subRes.ok) return json({ error: 'Server error' }, 500);
-  const subs = await subRes.json();
-  if (!subs.length) return json({ error: 'Link not found' }, 404);
-  const subId = subs[0].id;
-
-  // 2. store the file (private bucket)
-  const path = `${subId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-  const upRes = await fetch(
-    `${env.SUPABASE_URL}/storage/v1/object/certificates/${path}`,
-    {
-      method: 'POST',
-      headers: { ...auth, 'Content-Type': file.type, 'x-upsert': 'false' },
-      body: await file.arrayBuffer(),
+  async function init() {
+    try {
+      const res = await fetch(API + '?t=' + encodeURIComponent(token));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Invalid link');
+      $('title').textContent = 'Insurance certificate for ' + data.companyName;
+      $('intro').textContent = 'Hi ' + data.subName + ', please upload your current certificate of insurance (COI). It takes less than a minute.';
+      $('form').hidden = false;
+    } catch (e) {
+      $('title').textContent = 'Link not valid';
+      $('intro').textContent = '';
+      show('This upload link is invalid or has expired. Please ask your contractor to send a new one.', 'err');
     }
-  );
-  if (!upRes.ok) return json({ error: 'Could not store the file' }, 500);
+  }
 
-  // 3. create the certificate record
-  const rowRes = await fetch(`${env.SUPABASE_URL}/rest/v1/certificates`, {
-    method: 'POST',
-    headers: { ...auth, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      subcontractor_id: subId,
-      file_path: path,
-      needs_review: true,
-      status: 'pending',
-    }),
+  $('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const file = $('file').files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { show('File is too large (max 10 MB).', 'err'); return; }
+
+    $('btn').disabled = true;
+    show('Uploading…');
+    try {
+      const fd = new FormData();
+      fd.append('t', token);
+      fd.append('file', file);
+      const res = await fetch(API, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      $('form').hidden = true;
+      show('Thank you! Your certificate was uploaded. You can close this page.', 'ok');
+    } catch (e) {
+      show(e.message, 'err');
+      $('btn').disabled = false;
+    }
   });
-  if (!rowRes.ok) return json({ error: 'Could not save the certificate' }, 500);
 
-  return json({ ok: true });
-}
+  init();
+</script>
+</body>
+</html>
