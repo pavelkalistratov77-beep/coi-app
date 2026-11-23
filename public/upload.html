@@ -36,6 +36,7 @@
 
 <script>
   const token = new URLSearchParams(location.search).get('t') || '';
+  const API = 'https://sngsryzqszmxxqfuuuoj.supabase.co/functions/v1/coi-upload';
   const $ = (id) => document.getElementById(id);
 
   function show(text, cls) {
@@ -45,7 +46,7 @@
 
   async function init() {
     try {
-      const res = await fetch('/api/sub-info?t=' + encodeURIComponent(token));
+      const res = await fetch(API + '?t=' + encodeURIComponent(token));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Invalid link');
       $('title').textContent = 'Insurance certificate for ' + data.companyName;
@@ -53,35 +54,3 @@
       $('form').hidden = false;
     } catch (e) {
       $('title').textContent = 'Link not valid';
-      $('intro').textContent = '';
-      show('This upload link is invalid or has expired. Please ask your contractor to send a new one.', 'err');
-    }
-  }
-
-  $('form').addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    const file = $('file').files[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { show('File is too large (max 10 MB).', 'err'); return; }
-
-    $('btn').disabled = true;
-    show('Uploading…');
-    try {
-      const fd = new FormData();
-      fd.append('t', token);
-      fd.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      $('form').hidden = true;
-      show('Thank you! Your certificate was uploaded. You can close this page.', 'ok');
-    } catch (e) {
-      show(e.message, 'err');
-      $('btn').disabled = false;
-    }
-  });
-
-  init();
-</script>
-</body>
-</html>
