@@ -54,3 +54,35 @@
       $('form').hidden = false;
     } catch (e) {
       $('title').textContent = 'Link not valid';
+      $('intro').textContent = '';
+      show('This upload link is invalid or has expired. Please ask your contractor to send a new one.', 'err');
+    }
+  }
+
+  $('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const file = $('file').files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { show('File is too large (max 10 MB).', 'err'); return; }
+
+    $('btn').disabled = true;
+    show('Uploading…');
+    try {
+      const fd = new FormData();
+      fd.append('t', token);
+      fd.append('file', file);
+      const res = await fetch(API, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      $('form').hidden = true;
+      show('Thank you! Your certificate was uploaded. You can close this page.', 'ok');
+    } catch (e) {
+      show(e.message, 'err');
+      $('btn').disabled = false;
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
